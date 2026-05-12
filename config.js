@@ -6,7 +6,7 @@ function convertToBool(text, fault = 'true') {
 }
 module.exports = {
 SESSION_ID: process.env.SESSION_ID || "4IMUTAaB#ylwudzACOqcbTxJO7RXg9EDHt41SCVY_gQdosXOChHU",
-ALIVE_IMG: process.env.ALIVE_IMG || "https://github.com/FURYMD/NETHUM-MD/blob/main/images/alive.png?raw=true",
+ALIVE_IMG: process.env.ALIVE_IMG || "https://github.com/FURYMD/NETHUM-MD/blob/df79ab30adfe81c55fdd4b269299d20c53ec193f/images/alive.png",
 ALIVE_MSG: process.env.ALIVE_MSG || "*Hello👋 NETHUM-MD Is Alive Now😍*",
 BOT_OWNER: '94721640007',  // Replace with the owner's phone number
 AUTO_STATUS_SEEN: 'true',
