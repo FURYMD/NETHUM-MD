@@ -105,7 +105,7 @@ async function connectToWA() {
 
       const up = `NETHUM-MD connected ✅\n\nPREFIX: ${prefix}`;
       await test.sendMessage(ownerNumber[0] + "@s.whatsapp.net", {
-        image: { url: `https://github.com/FURYMD/NETHUM-MD/blob/main/images/ChatGPT%20Image%20May%2012,%202026,%2003_46_11%20PM.png?raw=true` },
+        image: { url: `raw.githubusercontent.com/FURYMD/NETHUM-MD/main/images/ChatGPT%20Image%20May%2012,%202026,%2003_46_11%20PM.png` },
         caption: up
       });
 
