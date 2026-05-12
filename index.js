@@ -4,6 +4,18 @@ const {
   DisconnectReason,
   jidNormalizedUser,
   getContentType,
+  proto,
+  generateWAMessageContent,
+  generateWAMessage,
+  AnyMessageContent,
+  prepareWAMessageMedia,
+  areJidsSameUser,
+  downloadContentFromMessage,
+  MessageRetryMap,
+  generateForwardMessageContent,
+  generateWAMessageFromContent,
+  generateMessageID, makeInMemoryStore,
+  jidDecode,
   fetchLatestBaileysVersion,
   Browsers
 } = require('@whiskeysockets/baileys');
@@ -62,12 +74,16 @@ async function ensureSessionFile() {
   }
 }
 
+const antiDeletePlugin = require('./plugins/antidelete.js');
+global.pluginHooks = global.pluginHooks || [];
+global.pluginHooks.push(antiDeletePlugin);
+
 async function connectToWA() {
   console.log("Connecting NETHUM-MD 🧬...");
   const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, '/auth_info_baileys/'));
   const { version } = await fetchLatestBaileysVersion();
 
-  const nethum = makeWASocket({
+  const test = makeWASocket({
     logger: P({ level: 'silent' }),
     printQRInTerminal: false,
     browser: Browsers.macOS("Firefox"),
@@ -78,7 +94,7 @@ async function connectToWA() {
     generateHighQualityLinkPreview: true,
   });
 
-  nethum.ev.on('connection.update', async (update) => {
+  test.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
     if (connection === 'close') {
       if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
@@ -88,8 +104,8 @@ async function connectToWA() {
       console.log('✅ NETHUM-MD connected to WhatsApp');
 
       const up = `NETHUM-MD connected ✅\n\nPREFIX: ${prefix}`;
-      await nethum.sendMessage(ownerNumber[0] + "@s.whatsapp.net", {
-        image: { url: `https://github.com/FURYMD/NETHUM-MD/blob/main/images/ChatGPT%20Image%20May%2012,%202026,%2003_46_11%20PM.png?raw=true` },
+      await test.sendMessage(ownerNumber[0] + "@s.whatsapp.net", {
+        image: { url: `https://github.com/NETHUM-bot/NETHUM_MD/blob/main/images/ChatGPT%20Image%20May%2011,%202026,%2007_18_16%20PM.png?raw=true` },
         caption: up
       });
 
@@ -101,54 +117,98 @@ async function connectToWA() {
     }
   });
 
-  nethum.ev.on('creds.update', saveCreds);
+  test.ev.on('creds.update', saveCreds);
 
-  nethum.ev.on('messages.upsert', async ({ messages }) => {
+  test.ev.on('messages.upsert', async ({ messages }) => {
     for (const msg of messages) {
       if (msg.messageStubType === 68) {
-        await nethum.sendMessageAck(msg.key);
+        await test.sendMessageAck(msg.key);
       }
     }
 
     const mek = messages[0];
     if (!mek || !mek.message) return;
-
     mek.message = getContentType(mek.message) === 'ephemeralMessage' ? mek.message.ephemeralMessage.message : mek.message;
-    if (mek.key.remoteJid === 'status@broadcast') return;
 
-    const m = sms(nethum, mek);
+    if (global.pluginHooks) {
+      for (const plugin of global.pluginHooks) {
+        if (plugin.onMessage) {
+          try {
+            await plugin.onMessage(test, mek);
+          } catch (e) {
+            console.log("onMessage error:", e);
+          }
+        }
+      }
+    }
+
+    if (mek.key?.remoteJid === 'status@broadcast') {
+      const senderJid = mek.key.participant || mek.key.remoteJid || "unknown@s.whatsapp.net";
+      
+      if (config.AUTO_STATUS_SEEN === "true") {
+        try {
+          await test.readMessages([mek.key]);
+          console.log(`[✓] Status seen: ${mek.key.id}`);
+        } catch (e) {
+          console.error("❌ Failed to mark status as seen:", e);
+        }
+      }
+
+      if (config.AUTO_STATUS_REACT === "true" && mek.key.participant) {
+        try {
+          const emojis = ['❤️', '💸', '😇', '🍂', '💥', '💯', '🔥', '💫', '💎', '💗', '🤍', '🖤', '👀', '🙌', '🙆', '🚩', '🥰', '💐', '😎', '🤎', '✅', '🫀', '🧡', '😁', '😄', '🌸', '🕊️', '🌷', '⛅', '🌟', '🗿', '💜', '💙', '🌝', '🖤', '💚'];
+          const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+
+          await test.sendMessage(mek.key.participant, {
+            react: {
+              text: randomEmoji,
+              key: mek.key,
+            }
+          });
+          console.log(`[✓] Reacted to status of ${mek.key.participant} with ${randomEmoji}`);
+        } catch (e) {
+          console.error("❌ Failed to react to status:", e);
+        }
+      }
+    } // <-- වැරැද්ද තිබුණේ මෙතැන (වරහන වසා නොතිබීම)
+
+    const m = sms(test, mek);
     const type = getContentType(mek.message);
     const from = mek.key.remoteJid;
-    const body = type === 'conversation' ? mek.message.conversation : mek.message[type]?.text || mek.message[type]?.caption || '';
+    const body = (type === 'conversation') ? mek.message.conversation :
+      (type === 'extendedTextMessage') ? mek.message.extendedTextMessage.text :
+        (type == 'imageMessage' && mek.message.imageMessage.caption) ? mek.message.imageMessage.caption :
+          (type == 'videoMessage' && mek.message.videoMessage.caption) ? mek.message.videoMessage.caption : '';
+    
     const isCmd = body.startsWith(prefix);
     const commandName = isCmd ? body.slice(prefix.length).trim().split(" ")[0].toLowerCase() : '';
     const args = body.trim().split(/ +/).slice(1);
     const q = args.join(' ');
 
-    const sender = mek.key.fromMe ? nethum.user.id : (mek.key.participant || mek.key.remoteJid);
+    const sender = mek.key.fromMe ? test.user.id : (mek.key.participant || mek.key.remoteJid);
     const senderNumber = sender.split('@')[0];
     const isGroup = from.endsWith('@g.us');
-    const botNumber = nethum.user.id.split(':')[0];
+    const botNumber = test.user.id.split(':')[0];
     const pushname = mek.pushName || 'Sin Nombre';
     const isMe = botNumber.includes(senderNumber);
     const isOwner = ownerNumber.includes(senderNumber) || isMe;
-    const botNumber2 = await jidNormalizedUser(nethum.user.id);
+    const botNumber2 = await jidNormalizedUser(test.user.id);
 
-    const groupMetadata = isGroup ? await nethum.groupMetadata(from).catch(() => {}) : '';
+    const groupMetadata = isGroup ? await test.groupMetadata(from).catch(() => {}) : '';
     const groupName = isGroup ? groupMetadata.subject : '';
     const participants = isGroup ? groupMetadata.participants : '';
     const groupAdmins = isGroup ? await getGroupAdmins(participants) : '';
     const isBotAdmins = isGroup ? groupAdmins.includes(botNumber2) : false;
     const isAdmins = isGroup ? groupAdmins.includes(sender) : false;
 
-    const reply = (text) => nethum.sendMessage(from, { text }, { quoted: mek });
+    const reply = (text) => test.sendMessage(from, { text }, { quoted: mek });
 
     if (isCmd) {
       const cmd = commands.find((c) => c.pattern === commandName || (c.alias && c.alias.includes(commandName)));
       if (cmd) {
-        if (cmd.react) nethum.sendMessage(from, { react: { text: cmd.react, key: mek.key } });
+        if (cmd.react) test.sendMessage(from, { react: { text: cmd.react, key: mek.key } });
         try {
-          cmd.function(nethum, mek, m, {
+          cmd.function(test, mek, m, {
             from, quoted: mek, body, isCmd, command: commandName, args, q,
             isGroup, sender, senderNumber, botNumber2, botNumber, pushname,
             isMe, isOwner, groupMetadata, groupName, participants, groupAdmins,
@@ -160,16 +220,29 @@ async function connectToWA() {
       }
     }
 
-    const replyText = body;
     for (const handler of replyHandlers) {
-      if (handler.filter(replyText, { sender, message: mek })) {
+      if (handler.filter(body, { sender, message: mek })) {
         try {
-          await handler.function(nethum, mek, m, {
-            from, quoted: mek, body: replyText, sender, reply,
+          await handler.function(test, mek, m, {
+            from, quoted: mek, body: body, sender, reply,
           });
           break;
         } catch (e) {
           console.log("Reply handler error:", e);
+        }
+      }
+    }
+  });
+
+  test.ev.on('messages.update', async (updates) => {
+    if (global.pluginHooks) {
+      for (const plugin of global.pluginHooks) {
+        if (plugin.onDelete) {
+          try {
+            await plugin.onDelete(test, updates);
+          } catch (e) {
+            console.log("onDelete error:", e);
+          }
         }
       }
     }
