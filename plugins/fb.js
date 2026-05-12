@@ -67,7 +67,7 @@ Your fb video
         from,
         {
           image: {
-            url: "https://github.com/FURYMD/NETHUM-MD/blob/main/images/ChatGPT%20Image%20May%2012,%202026,%2003_46_11%20PM.png?raw=true",
+            url: "https://github.com/FURYMD/NETHUM-MD/blob/df79ab30adfe81c55fdd4b269299d20c53ec193f/images/alive.png",
           },
           caption: desc,
         },
