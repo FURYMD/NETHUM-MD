@@ -11,6 +11,7 @@ ALIVE_MSG: process.env.ALIVE_MSG || "*Hello👋 NETHUM-MD Is Alive Now😍*",
 BOT_OWNER: '94721640007',  // Replace with the owner's phone number
 AUTO_STATUS_SEEN: 'true',
 AUTO_STATUS_REACT: 'true',
+ANTI_DELETE: 'true',
 
 
 
