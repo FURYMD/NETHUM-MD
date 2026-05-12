@@ -5,7 +5,7 @@ const path = require("path");
 const pendingMenu = {};
 const numberEmojis = ["0️⃣","1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣"];
 
-const headerImage = "https://github.com/FURYMD/NETHUM-MD/blob/main/images/alive.png?raw=true";
+const headerImage = "https://github.com/FURYMD/NETHUM-MD/blob/df79ab30adfe81c55fdd4b269299d20c53ec193f/images/alive.png";
 
 cmd({
   pattern: "menu",
