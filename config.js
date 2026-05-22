@@ -10,7 +10,7 @@ ALIVE_IMG: process.env.ALIVE_IMG || "https://github.com/FURYMD/NETHUM-MD/blob/ma
 ALIVE_MSG: process.env.ALIVE_MSG || "*Hello👋 NETHUM-MD Is Alive Now😍*",
 BOT_OWNER: '94721640007',  // Replace with the owner's phone number
 AUTO_STATUS_SEEN: 'true',
-AUTO_STATUS_REACT: 'true',
+AUTO_STATUS_REACT: 'false',
 ANTI_DELETE: 'true',
 
 
